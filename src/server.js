@@ -254,10 +254,20 @@ const server = createServer(async (request, response) => {
       const result = await runCycle();
       return send(response, 200, { revision: result.state.revision, consciousness: result.state.consciousness, dreamCreated: result.dreamCreated, barkSent: result.barkSent, daytimeSent: result.daytimeSent });
     }
-    if (request.method === 'POST' && (url.pathname === '/v1/conversation-event' || url.pathname === '/v1/heartbeat')) {
+    if (request.method === 'POST' && url.pathname === '/v1/conversation-event') {
       const event = await body(request);
       const now = new Date();
       const state = await store.update((current) => applyConversationEvent(current, event, now).state);
+      return send(response, 200, { revision: state.revision, consciousness: state.consciousness, pendingAwareness: state.pendingAwareness });
+    }
+    if (request.method === 'POST' && url.pathname === '/v1/heartbeat') {
+      const event = await body(request);
+      const now = new Date();
+      const state = await store.update((current) => {
+        const result = applyConversationEvent(current, event, now);
+        result.state.lastHeartbeatAt = now.toISOString();
+        return result.state;
+      });
       return send(response, 200, { revision: state.revision, consciousness: state.consciousness, pendingAwareness: state.pendingAwareness });
     }
     if (request.method === 'POST' && url.pathname === '/v1/drive-feedback') {
