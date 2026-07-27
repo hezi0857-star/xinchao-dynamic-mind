@@ -244,7 +244,13 @@ const server = createServer(async (request, response) => {
 
     // MCP endpoint
     if (url.pathname === '/mcp') {
-      log('mcp_request', { method: request.method, authHeader: request.headers.authorization?.slice(0, 20) ?? 'MISSING' });
+      const queryToken = url.searchParams.get('token') ?? '';
+      const headerToken = request.headers.authorization?.replace(/^Bearer\s+/i, '') ?? '';
+      const supplied = headerToken || queryToken;
+      const left = Buffer.from(supplied);
+      const right = Buffer.from(config.serviceToken);
+      const isAuthorized = left.length > 0 && left.length === right.length && timingSafeEqual(left, right);
+      if (!isAuthorized) return send(response, 401, { error: 'unauthorized' });
       return mcpHandler(request, response);
     }
 
