@@ -40,7 +40,6 @@ export class MemoryClient {
             clientInfo: { name: 'xinchao-dynamic-mind', version: '2.0.0' },
           },
         });
-        if (!this.sessionId) throw new Error('Memory MCP did not return a session id');
         await this.post({ jsonrpc: '2.0', method: 'notifications/initialized' }, false);
       })().finally(() => { this.initializePromise = null; });
     }
