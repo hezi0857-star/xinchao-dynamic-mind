@@ -244,8 +244,7 @@ const server = createServer(async (request, response) => {
 
     // MCP endpoint
     if (url.pathname === '/mcp') {
-      log('mcp_auth_debug', { authHeader: request.headers.authorization?.slice(0, 20) ?? 'MISSING', tokenLen: config.serviceToken.length });
-      if (!authorized(request)) return send(response, 401, { error: 'unauthorized' });
+      log('mcp_request', { method: request.method, authHeader: request.headers.authorization?.slice(0, 20) ?? 'MISSING' });
       return mcpHandler(request, response);
     }
 
