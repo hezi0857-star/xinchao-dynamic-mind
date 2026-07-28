@@ -235,6 +235,11 @@ const mcpHandler = createMcpHandler({
   pickIntent,
 });
 
+const oauth = createOAuthHandler({
+  publicUrl: process.env.PUBLIC_URL ?? `https://xinchao.zeabur.app`,
+  serviceToken: config.serviceToken,
+});
+
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
@@ -243,15 +248,23 @@ const server = createServer(async (request, response) => {
       return send(response, 200, { ok: true, mode: config.shadowMode ? 'shadow' : 'active', version: '2.0.0' });
     }
 
-    // MCP endpoint
+    // OAuth endpoints (no auth required)
+    if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/oauth/')) {
+      const handled = await oauth.handle(request, response, url);
+      if (handled) return;
+    }
+
+    // MCP endpoint — accepts OAuth token, static token via header, or query param
     if (url.pathname === '/mcp') {
       const queryToken = url.searchParams.get('token') ?? '';
-      const headerToken = request.headers.authorization?.replace(/^Bearer\s+/i, '') ?? '';
-      const supplied = headerToken || queryToken;
-      const left = Buffer.from(supplied);
-      const right = Buffer.from(config.serviceToken);
-      const isAuthorized = left.length > 0 && left.length === right.length && timingSafeEqual(left, right);
-      if (!isAuthorized) return send(response, 401, { error: 'unauthorized' });
+      const hasValidBearer = oauth.validateBearerToken(request.headers.authorization);
+      const hasQueryToken = (() => {
+        if (!queryToken) return false;
+        const left = Buffer.from(queryToken);
+        const right = Buffer.from(config.serviceToken);
+        return left.length > 0 && left.length === right.length && require('node:crypto').timingSafeEqual(left, right);
+      })();
+      if (!hasValidBearer && !hasQueryToken) return send(response, 401, { error: 'unauthorized' });
       return mcpHandler(request, response);
     }
 
