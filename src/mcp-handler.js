@@ -229,12 +229,14 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
   }
 
   return async function mcpHandler(req, res) {
+    const sessionId = getOrCreateSession(req);
+
     if (req.method === 'GET') {
-      // SSE endpoint for server-initiated messages (not needed for basic usage)
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'Mcp-Session-Id': sessionId,
       });
       res.write(`data: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/ready' })}\n\n`);
       req.on('close', () => res.end());
@@ -242,6 +244,7 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
     }
 
     if (req.method === 'DELETE') {
+      sessions.delete(req.headers['mcp-session-id']);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -274,18 +277,18 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
         const result = await handleRequest(item);
         if (result !== null) results.push(result);
       }
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Mcp-Session-Id': sessionId });
       res.end(JSON.stringify(results));
       return;
     }
 
     const result = await handleRequest(parsed);
     if (result === null) {
-      res.writeHead(204);
+      res.writeHead(204, { 'Mcp-Session-Id': sessionId });
       res.end();
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Mcp-Session-Id': sessionId });
     res.end(JSON.stringify(result));
   };
 }
