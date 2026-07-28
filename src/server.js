@@ -9,6 +9,7 @@ import { MemoryClient } from './memory-client.js';
 import { BarkClient } from './bark-client.js';
 import { readMemoryHeartbeat } from './heartbeat-store.js';
 import { createMcpHandler } from './mcp-handler.js';
+import { createOAuthHandler } from './oauth-handler.js';
 
 const config = loadConfig();
 if (!config.serviceToken) throw new Error('SERVICE_TOKEN is required');
