@@ -111,6 +111,21 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
     applyDriveFeedback,
   } = engine;
 
+  const sessions = new Map();
+
+  function getOrCreateSession(req) {
+    const existing = req.headers['mcp-session-id'];
+    if (existing && sessions.has(existing)) return existing;
+    const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessions.set(id, { createdAt: Date.now() });
+    // Clean old sessions (keep max 100)
+    if (sessions.size > 100) {
+      const oldest = [...sessions.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
+      if (oldest) sessions.delete(oldest[0]);
+    }
+    return id;
+  }
+
   async function handleToolCall(name, args) {
     switch (name) {
       case 'xinchao_intent': {
