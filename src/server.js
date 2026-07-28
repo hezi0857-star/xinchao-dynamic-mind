@@ -262,7 +262,7 @@ const server = createServer(async (request, response) => {
         if (!queryToken) return false;
         const left = Buffer.from(queryToken);
         const right = Buffer.from(config.serviceToken);
-        return left.length > 0 && left.length === right.length && require('node:crypto').timingSafeEqual(left, right);
+        return left.length > 0 && left.length === right.length && timingSafeEqual(left, right);
       })();
       if (!hasValidBearer && !hasQueryToken) return send(response, 401, { error: 'unauthorized' });
       return mcpHandler(request, response);
