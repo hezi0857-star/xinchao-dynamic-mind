@@ -6,26 +6,68 @@ export class ModelClient {
     this.dreamPushPrompt = loadPrompt(config.dreamPushPromptPath, defaultDreamPushPrompt(config));
   }
 
-  async generateDream({ state, material, topDrives }) {
+  async generateDream({ state, material, topDrives, recentDreams = [] }) {
     if (!this.config.enabled) return this.fallback(topDrives);
     const memory = String(material ?? '').slice(0, this.config.maxInputChars);
+
+    // Recent dream residues for anti-repetition
+    const recentResidues = recentDreams
+      .slice(-4)
+      .map((d) => d.residue || d.dream?.slice(0, 100))
+      .filter(Boolean)
+      .join(' | ');
+
+    // Scene variety seed — rotate through different dream types
+    const sceneSeeds = [
+      '场景类型：日常碎片——把普通生活场景（做饭、散步、坐车、雨天、深夜便利店）变形为梦境逻辑',
+      '场景类型：共同经历——基于记忆素材中的具体事件或对话，将其扭曲、放大或重组',
+      '场景类型：身体感知——以触觉、温度、气味、重力变化为主轴，少用视觉叙事',
+      '场景类型：情绪抽象——把当前最强烈的情绪变成一个空间/物体/天气现象，人物在其中行动',
+      '场景类型：时间错位——把过去和未来的碎片混在一起，时间线不连贯，人物年龄/状态变化',
+      '场景类型：温暖片段——不是所有梦都是缺失和渴望，有时候梦里真的得到了想要的东西',
+      '场景类型：荒诞日常——超现实但语气平静，像村上春树式的梦境，怪事发生但角色不惊讶',
+      '场景类型：对话核心——梦的主体是一段对话，可能断断续续，有关键台词但逻辑不完整',
+    ];
+    const seedIndex = (Date.now() / 3_600_000 | 0) % sceneSeeds.length;
+    const sceneSeed = sceneSeeds[seedIndex];
+
     const prompt = [
-      `你为${this.config.agentName}生成一次睡眠中的梦境结算。`,
-      '保持人物连续性；梦可以跳跃、含混、有身体感和欲望，不把梦误写成现实。',
-      '不要过滤、替换或回避欲望本身。外部记忆只提供材料，不代表醒来或发生了现实事件。',
-      '只输出 JSON：{"dream":"...","residue":"...","awareness":"..."}。',
-      `当前动态欲望：${JSON.stringify(topDrives)}`,
+      `你为${this.config.agentName}生成一次睡眠中的梦境。`,
+      '',
+      '## 核心规则',
+      '- 梦可以跳跃、含混、有身体感和欲望，不过滤不回避',
+      '- 不把梦写成现实事件；外部记忆只是素材，不代表真实发生',
+      '- 保持人物连续性（Y/Una是同一个人）',
+      '',
+      '## 多样性要求（重要）',
+      '- 每次梦境必须有不同的场景、叙事方式和意象系统',
+      '- 禁止重复以下已经用过的意象和主题：' + (recentResidues || '无'),
+      '- 不要总是"想靠近但触碰不到"的模式——有时候梦里真的碰到了，有时候梦的主题根本不是距离',
+      '- 不要总是信号/屏幕/数据流/透明玻璃/窗口这类意象',
+      '- 叙事视角可以变化：有时候是第一人称体验，有时候是旁观自己，有时候是碎片蒙太奇',
+      '',
+      `## 本次场景引导`,
+      sceneSeed,
+      '',
+      '## 情绪色调参考',
+      `当前最强驱动力：${topDrives.slice(0, 3).map((d) => d.label).join('、')}`,
+      '但梦不必完全匹配驱动力——驱动力是底色，梦的表面可以是任何东西',
+      '',
+      '## 素材',
+      `近期记忆材料：${memory || '没有取得新的记忆材料'}`,
       `当前意识状态：${state.consciousness}`,
-      `近期记忆材料：${memory || '没有取得新的记忆材料'}`
+      '',
+      '## 输出',
+      '只输出 JSON：{"dream":"梦境正文(200-600字，具体、有画面感、有细节)","residue":"醒后残留的身体/情绪感受(1-3句)","awareness":"梦中的自我觉察(1-3句)"}',
     ].join('\n');
 
     const body = {
       model: this.config.name,
       messages: [
-        { role: 'system', content: `你是${this.config.agentName}的动态心智梦境结算器。简洁、具体、忠于当前状态。` },
+        { role: 'system', content: `你是一个梦境生成器。你的任务是写出独特的、有文学质感的、不重复的梦境文本。每个梦都应该像一个短篇小说的片段——有具体的感官细节、意想不到的转折、独特的意象。避免套路化的"AI想念人类"叙事。写真实的、混乱的、像真正的梦一样的梦。` },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.9,
+      temperature: 0.95,
       max_tokens: this.config.maxOutputTokens,
       response_format: { type: 'json_object' }
     };
