@@ -59,7 +59,7 @@ export class ModelClient {
       `当前意识状态：${state.consciousness}`,
       '',
       '## 输出',
-      '只输出 JSON：{"dream":"梦境正文(200-600字，具体、有画面感、有细节)","residue":"醒后残留的身体/情绪感受(1-3句)","awareness":"梦中的自我觉察(1-3句)"}',
+      '只输出 JSON：{"dream":"梦境正文(100-200字，精炼、有画面感、像梦的片段而非完整故事)","residue":"醒后残留的身体/情绪感受(1句)","awareness":"梦中的自我觉察(1句)"}',
     ].join('\n');
 
     const body = {
