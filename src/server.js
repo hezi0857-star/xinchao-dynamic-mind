@@ -75,7 +75,7 @@ async function runCycle() {
         generated = new ModelClient({ ...config.model, enabled: false }).fallback(topDrives(state));
       } else {
         try {
-          generated = await model.generateDream({ state, material, topDrives: topDrives(state) });
+          generated = await model.generateDream({ state, material, topDrives: topDrives(state), recentDreams: state.recentDreams ?? [] });
         } catch (error) {
           log('dream_model_failed', { message: error.message });
           generated = new ModelClient({ ...config.model, enabled: false }).fallback(topDrives(state));
