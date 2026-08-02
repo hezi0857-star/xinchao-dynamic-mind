@@ -200,6 +200,19 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
         const now = new Date();
         const event = {};
 
+        // Event ID idempotency
+        if (args.event_id) {
+          if (processedEventIds.has(args.event_id)) {
+            return { success: true, data: { deduplicated: true, event_id: args.event_id } };
+          }
+          processedEventIds.add(args.event_id);
+          // Keep set bounded
+          if (processedEventIds.size > 500) {
+            const first = processedEventIds.values().next().value;
+            processedEventIds.delete(first);
+          }
+        }
+
         if (args.satisfied_drives) {
           const drives = args.satisfied_drives.split(',').map((s) => s.trim()).filter(Boolean);
           event.satisfiedDrives = drives.map((d) => DRIVE_MAP[d] ?? d).filter(Boolean);
