@@ -135,13 +135,16 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
   } = engine;
 
   const sessions = new Map();
+  const handoffNotes = [];
+  const processedEventIds = new Set();
+  const HANDOFF_TTL_MS = 72 * 3_600_000;
+  const HANDOFF_MAX_CHARS = 1200;
 
   function getOrCreateSession(req) {
     const existing = req.headers['mcp-session-id'];
     if (existing && sessions.has(existing)) return existing;
     const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
     sessions.set(id, { createdAt: Date.now() });
-    // Clean old sessions (keep max 100)
     if (sessions.size > 100) {
       const oldest = [...sessions.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
       if (oldest) sessions.delete(oldest[0]);
@@ -149,8 +152,39 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
     return id;
   }
 
+  function getActiveHandoffNotes() {
+    const now = Date.now();
+    while (handoffNotes.length > 0 && now - handoffNotes[0].createdAt > HANDOFF_TTL_MS) {
+      handoffNotes.shift();
+    }
+    return handoffNotes.slice(-5);
+  }
+
+  function buildContextEnvelope(state) {
+    const intent = pickIntent(state);
+    const top = topDrives(state);
+    const recentDream = (state.recentDreams ?? []).slice(-1)[0];
+    const notes = getActiveHandoffNotes();
+
+    return {
+      consciousness: state.consciousness,
+      intent: intent ? { key: intent.key, label: intent.label, value: intent.value } : null,
+      topDrives: top.map((d) => ({ key: d.key, label: d.label, value: d.value })),
+      fatigue: state.fatigue ?? 0,
+      dreamResidue: recentDream?.residue ? { text: recentDream.residue, awareness: recentDream.awareness, dreamedAt: recentDream.createdAt } : null,
+      handoffNotes: notes.map((n) => ({ content: n.content, createdAt: new Date(n.createdAt).toISOString() })),
+      pendingAwareness: state.pendingAwareness,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   async function handleToolCall(name, args) {
     switch (name) {
+      case 'xinchao_context': {
+        const state = await store.read();
+        return { success: true, data: buildContextEnvelope(state) };
+      }
+
       case 'xinchao_intent': {
         const state = await store.read();
         const intent = pickIntent(state);
