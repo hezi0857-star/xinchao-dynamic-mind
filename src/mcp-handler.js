@@ -255,6 +255,15 @@ export function createMcpHandler({ store, runCycle, engine, topDrives, pickInten
         return { success: true, data: { revision: state.revision, consciousness: state.consciousness, pendingAwareness: state.pendingAwareness } };
       }
 
+      case 'xinchao_handoff_note': {
+        const content = String(args.content ?? '').slice(0, HANDOFF_MAX_CHARS).trim();
+        if (!content) return { success: false, error: 'Content is required' };
+        handoffNotes.push({ content, createdAt: Date.now() });
+        // Keep bounded
+        while (handoffNotes.length > 10) handoffNotes.shift();
+        return { success: true, data: { saved: true, expiresAt: new Date(Date.now() + HANDOFF_TTL_MS).toISOString() } };
+      }
+
       default:
         return { success: false, error: `Unknown tool: ${name}` };
     }
