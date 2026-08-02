@@ -15,8 +15,13 @@ const CAPABILITIES = {
 
 const TOOLS = [
   {
+    name: 'xinchao_context',
+    description: '获取当前动态上下文信封（Context Envelope）。包含：驱动力短态、当前意图、梦境余韵、交接便签。每次对话开始时调用一次即可获得完整上下文。',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
     name: 'xinchao_intent',
-    description: '获取心潮当前的行动意图、驱动力状态、念头池和疲惫度。每次对话开始时调用一次，了解AI当前的内在状态和最想做的事。',
+    description: '获取心潮当前的行动意图、驱动力状态、念头池和疲惫度。',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -37,6 +42,10 @@ const TOOLS = [
         flash_thoughts: {
           type: 'string',
           description: '闪念内容，JSON格式的数组字符串，如 [{"key":"curiosity","text":"想研究这个问题","intensity":0.8}]',
+        },
+        event_id: {
+          type: 'string',
+          description: '幂等事件ID。相同event_id不会重复结算。可选。',
         },
       },
       required: [],
@@ -69,6 +78,20 @@ const TOOLS = [
     name: 'xinchao_heartbeat',
     description: '向心潮发送一次心跳，告知用户仍在活跃。这是推送通知的前置条件——心潮只在收到heartbeat后才会发送推送。每次对话结束时调用一次。',
     inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'xinchao_handoff_note',
+    description: '保存一条跨对话交接便签。用于在对话结束时记录关键进展、待办或上下文，供下次对话通过xinchao_context自动获取。最多1200字，72小时后自动过期。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: '交接便签内容。简洁记录本次对话的关键进展、未完成事项或需要下次继续的上下文。不要放聊天原文、密钥或长段引用。最多1200字。',
+        },
+      },
+      required: ['content'],
+    },
   },
 ];
 
